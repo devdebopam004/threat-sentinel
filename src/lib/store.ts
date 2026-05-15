@@ -65,9 +65,10 @@ export const useAppStore = create<AppState>()(
       name: "soc-store",
       storage: createJSONStorage(() =>
         typeof window === "undefined"
-          ? ({ getItem: () => null, setItem: () => {}, removeItem: () => {} } as Storage)
+          ? (undefined as unknown as Storage)
           : localStorage,
       ),
+      skipHydration: true,
       partialize: (s) => ({ threatApi: s.threatApi, behaviorApi: s.behaviorApi }),
     },
   ),
