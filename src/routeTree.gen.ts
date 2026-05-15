@@ -9,38 +9,155 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ThreatIntelligenceRouteImport } from './routes/threat-intelligence'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as BehavioralAnalyticsRouteImport } from './routes/behavioral-analytics'
+import { Route as AnomalyDetectionRouteImport } from './routes/anomaly-detection'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiProxyServiceRouteImport } from './routes/api/proxy.$service'
 
+const ThreatIntelligenceRoute = ThreatIntelligenceRouteImport.update({
+  id: '/threat-intelligence',
+  path: '/threat-intelligence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BehavioralAnalyticsRoute = BehavioralAnalyticsRouteImport.update({
+  id: '/behavioral-analytics',
+  path: '/behavioral-analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnomalyDetectionRoute = AnomalyDetectionRouteImport.update({
+  id: '/anomaly-detection',
+  path: '/anomaly-detection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxyServiceRoute = ApiProxyServiceRouteImport.update({
+  id: '/api/proxy/$service',
+  path: '/api/proxy/$service',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/anomaly-detection': typeof AnomalyDetectionRoute
+  '/behavioral-analytics': typeof BehavioralAnalyticsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/threat-intelligence': typeof ThreatIntelligenceRoute
+  '/api/proxy/$service': typeof ApiProxyServiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/anomaly-detection': typeof AnomalyDetectionRoute
+  '/behavioral-analytics': typeof BehavioralAnalyticsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/threat-intelligence': typeof ThreatIntelligenceRoute
+  '/api/proxy/$service': typeof ApiProxyServiceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/anomaly-detection': typeof AnomalyDetectionRoute
+  '/behavioral-analytics': typeof BehavioralAnalyticsRoute
+  '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
+  '/threat-intelligence': typeof ThreatIntelligenceRoute
+  '/api/proxy/$service': typeof ApiProxyServiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/anomaly-detection'
+    | '/behavioral-analytics'
+    | '/reports'
+    | '/settings'
+    | '/threat-intelligence'
+    | '/api/proxy/$service'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/anomaly-detection'
+    | '/behavioral-analytics'
+    | '/reports'
+    | '/settings'
+    | '/threat-intelligence'
+    | '/api/proxy/$service'
+  id:
+    | '__root__'
+    | '/'
+    | '/anomaly-detection'
+    | '/behavioral-analytics'
+    | '/reports'
+    | '/settings'
+    | '/threat-intelligence'
+    | '/api/proxy/$service'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnomalyDetectionRoute: typeof AnomalyDetectionRoute
+  BehavioralAnalyticsRoute: typeof BehavioralAnalyticsRoute
+  ReportsRoute: typeof ReportsRoute
+  SettingsRoute: typeof SettingsRoute
+  ThreatIntelligenceRoute: typeof ThreatIntelligenceRoute
+  ApiProxyServiceRoute: typeof ApiProxyServiceRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/threat-intelligence': {
+      id: '/threat-intelligence'
+      path: '/threat-intelligence'
+      fullPath: '/threat-intelligence'
+      preLoaderRoute: typeof ThreatIntelligenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/behavioral-analytics': {
+      id: '/behavioral-analytics'
+      path: '/behavioral-analytics'
+      fullPath: '/behavioral-analytics'
+      preLoaderRoute: typeof BehavioralAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/anomaly-detection': {
+      id: '/anomaly-detection'
+      path: '/anomaly-detection'
+      fullPath: '/anomaly-detection'
+      preLoaderRoute: typeof AnomalyDetectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +165,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy/$service': {
+      id: '/api/proxy/$service'
+      path: '/api/proxy/$service'
+      fullPath: '/api/proxy/$service'
+      preLoaderRoute: typeof ApiProxyServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnomalyDetectionRoute: AnomalyDetectionRoute,
+  BehavioralAnalyticsRoute: BehavioralAnalyticsRoute,
+  ReportsRoute: ReportsRoute,
+  SettingsRoute: SettingsRoute,
+  ThreatIntelligenceRoute: ThreatIntelligenceRoute,
+  ApiProxyServiceRoute: ApiProxyServiceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
