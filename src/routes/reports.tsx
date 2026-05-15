@@ -32,7 +32,7 @@ function Page() {
     const lines = [cols.join(",")];
     for (const r of u) {
       lines.push(cols.map((c) => {
-        const v = (r as Record<string, unknown>)[c];
+        const v = (r as unknown as Record<string, unknown>)[c];
         const s = Array.isArray(v) ? v.join(";") : v == null ? "" : String(v);
         return `"${s.replace(/"/g, '""')}"`;
       }).join(","));
