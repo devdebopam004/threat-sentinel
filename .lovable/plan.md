@@ -1,77 +1,37 @@
-## Goal
+# Behavior API Migration
 
-A production-grade SOC dashboard that uploads two CSV types, calls two real FastAPI services via a server-side proxy (to avoid CORS/auth issues and let us auto-discover routes), normalizes the responses to the exact JSON shapes from your uploaded `threatprediction1.json` (threat) and `threatprediction2.json` (anomaly) plus `behavior_analysis.json` (behavior), and visualizes everything across a futuristic dark-neon SOC UI.
+Replace deprecated `https://behavior-api-bppr.onrender.com` with new `https://behavior-api-new-ngra.onrender.com` everywhere it appears, without touching any other functionality (threat API, anomaly engine, charts, tables, upload pipeline, normalization, UI).
 
-## Architecture
+## Scope of change (only 2 hardcoded references in the codebase)
 
-```text
-Browser (React/TanStack)
-  ├─ Upload Threat CSV ──┐
-  ├─ Upload Behavior CSV─┤
-  │                      ▼
-  │   /api/proxy/threat  /api/proxy/behavior  /api/proxy/anomaly
-  │   (TanStack server routes; multipart passthrough,
-  │    timeout, retry, route auto-discovery, normalization)
-  │                      │
-  │                      ▼
-  │     API1: cyber-threat-api-new.onrender.com
-  │     API2: behavior-api-bppr.onrender.com
-  ▼
-Zustand store -> charts, table, modals
-```
+1. `src/lib/store.ts` (line 48) — default `behaviorApi` in the Zustand store.
+2. `src/routes/api/proxy.$service.ts` (line 43) — `DEFAULT_BASE.behavior` used by the server proxy when no `base` is sent from the client.
 
-API auto-discovery: proxy tries common paths in order (`/predict`, `/analyze`, `/upload`, `/predict_csv`, `/`) with both multipart CSV and JSON-rows payloads, caches the first 2xx route per service for the session, returns clear typed errors otherwise.
+## Persisted state invalidation
 
-## Routes (file-based)
+The Zustand store persists `behaviorApi` in `localStorage` under key `soc-store`. Existing users will still have the old URL cached. To force the new default without breaking other persisted prefs:
 
-- `/` Dashboard — counters, attack pie, severity bar, traffic line, anomaly scatter, top suspicious IPs, live feed ticker
-- `/threat-intelligence` — full SOC threat table (search/sort/filter/paginate/expand)
-- `/anomaly-detection` — anomaly scatter, score histogram, anomaly reasons breakdown
-- `/behavioral-analytics` — suspicious URLs, user-agent analysis, access-hour heatmap
-- `/reports` — export JSON/CSV of merged results
-- `/settings` — API base URLs (editable, persisted), engine status, theme
+- Bump the persist `name` to `soc-store-v2` (cleanly drops the stale URL on next load; nothing else of value is persisted — only the two API URLs).
 
-Shared layout in `__root.tsx`: collapsible neon sidebar, top header (title, threat-level pill, live clock, New Scan), engines-online status panel.
+## Already correct — no change needed
 
-## Data flow
+- `src/lib/api.ts` — sends `behaviorBase` from the store to the proxy (URL-agnostic).
+- `src/routes/api/proxy.$service.ts` candidate path list (`/predict`, `/predict_csv`, `/behavior/predict`, `/upload`, `/analyze`, `/predict/behavior`, `/api/predict`, `/`) — auto-discovery already handles unknown endpoint shapes on the new host. Per-instance route cache will re-discover on first call to the new base.
+- `src/lib/normalize.ts` — `normalizeBehaviorRow` already does defensive key lookups (`row.behavior_summary ?? row.summary ?? row.reasons`, `attack_prediction ?? prediction`, etc.) and coerces numbers/strings safely, so schema drift on the new API won't crash the UI.
+- `src/routes/settings.tsx` — reads the URL from the store, so the new default flows through automatically and users can still override it.
 
-1. User uploads Threat CSV + Behavior CSV on Dashboard (or Upload modal).
-2. Client validates schemas (required columns, row count, NaN scrub) via Zod + Papaparse — futuristic toast on failure.
-3. Animated processing overlay (8 stages, terminal log, progress bars).
-4. Parallel calls: `threat` + `anomaly` (same Threat CSV → API1, two endpoints), `behavior` (Behavior CSV → API2).
-5. Responses normalized to canonical types matching uploaded JSONs.
-6. Merged on `(timestamp, src_ip, dst_ip)` → unified `ThreatRecord[]` in Zustand.
-7. All charts/tables read from store; counters memoized.
+## Resilience (already in place, re-verified)
 
-## Canonical types (from your JSONs)
+- Proxy: 25s timeout, retries, multipart + JSON-rows + `{data: rows}` payload attempts, graceful 502 with typed error.
+- `runPipeline` collects per-service errors without throwing; threat/anomaly continue if behavior fails.
+- `setEngine("behavior", "error")` lights the red status on the sidebar; dashboard/table render whatever data is available.
 
-```ts
-ThreatRow   { timestamp, src_ip, dst_ip, src_port, dst_port, protocol,
-              bytes_sent, bytes_received, user_agent, url, is_internal_traffic,
-              prediction, malicious_probability, risk_level, explanation[] }
-AnomalyRow  { ...ids, anomaly_status, anomaly_score, reasons[] }
-BehaviorRow { timestamp, src_ip, ..., attack_prediction, confidence,
-              severity, behavior_summary[] }
-Unified     = merge of the three by composite key
-```
+## Out of scope
 
-## Stack
+No UI, normalization, chart, table, upload, or routing changes. No new dependencies.
 
-TanStack Start (existing), Tailwind v4 (existing tokens extended with neon palette in `styles.css`), Framer Motion, Recharts, Lucide, Papaparse, Zod, Axios (server-side in proxy), Zustand, sonner toasts, shadcn (existing).
+## Verification after build
 
-## Error/edge handling
-
-- CSV: missing columns → blocked with column-diff toast; empty/NaN rows skipped with count badge; >50k rows → warning + sample.
-- API: 8s timeout, 2 retries with backoff, route discovery, graceful degradation (e.g., behavior fails → dashboard still renders threat+anomaly with banner).
-- Network offline → red engine indicator + retry CTA.
-
-## What I will NOT build (per your answer)
-
-- PCAP / Apache log uploads (CSV-only v1; UI shows the option as disabled "backend service required" tile).
-- A real Python backend (using your live APIs only via proxy).
-
-## Deliverables in one pass
-
-All routes, sidebar/header, upload+validation, processing animation, 5 charts, threat table with expandable rows showing AI confidence, threat timeline, behavioral explanations, anomaly reasons, packet metadata; settings page to edit API base URLs at runtime; reports export.
-
-Approve and I'll build it end-to-end.
+1. Open `/settings` → confirm Behavior API base shows the new URL.
+2. Upload a behavior CSV on `/` → network tab shows `POST /api/proxy/behavior` with `base: "https://behavior-api-new-ngra.onrender.com"` in the body; response `ok: true` with discovered `route`.
+3. `/behavioral-analytics` and `/threat-intelligence` populate; threat + anomaly pipelines remain unaffected.

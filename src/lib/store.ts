@@ -45,7 +45,7 @@ export const useAppStore = create<AppState>()(
       engines: { threat: "ready", behavior: "ready", anomaly: "ready" },
       lastError: null,
       threatApi: "https://cyber-threat-api-new.onrender.com",
-      behaviorApi: "https://behavior-api-bppr.onrender.com",
+      behaviorApi: "https://behavior-api-new-ngra.onrender.com",
       setApis: (t, b) => set({ threatApi: t, behaviorApi: b }),
       setEngine: (k, s) =>
         set((st) => ({ engines: { ...st.engines, [k]: s } })),
@@ -62,7 +62,7 @@ export const useAppStore = create<AppState>()(
         }),
     }),
     {
-      name: "soc-store",
+      name: "soc-store-v2",
       storage: createJSONStorage(() =>
         typeof window === "undefined"
           ? (undefined as unknown as Storage)

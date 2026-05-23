@@ -40,7 +40,7 @@ const CANDIDATES: Record<string, string[]> = {
 const DEFAULT_BASE: Record<string, string> = {
   threat: "https://cyber-threat-api-new.onrender.com",
   anomaly: "https://cyber-threat-api-new.onrender.com",
-  behavior: "https://behavior-api-bppr.onrender.com",
+  behavior: "https://behavior-api-new-ngra.onrender.com",
 };
 
 // In-memory route cache (per worker instance)

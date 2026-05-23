@@ -4,10 +4,11 @@ import { useAppStore } from "@/lib/store";
 import { Link } from "@tanstack/react-router";
 
 export function TopHeader() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const unified = useAppStore((s) => s.unified);
 
   useEffect(() => {
+    setNow(new Date());
     const i = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(i);
   }, []);
@@ -65,7 +66,7 @@ export function TopHeader() {
       </div>
 
       <div className="hidden md:block font-mono text-xs text-muted-foreground tabular-nums">
-        {now.toUTCString().split(" ").slice(4, 5)[0]} UTC
+        {now ? `${now.toUTCString().split(" ").slice(4, 5)[0]} UTC` : "—— UTC"}
       </div>
 
       <Link
