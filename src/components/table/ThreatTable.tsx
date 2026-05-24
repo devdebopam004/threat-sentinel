@@ -187,6 +187,15 @@ function ExpandedRow({ r }: { r: UnifiedRecord }) {
             <DataLine label="SYN / ACK Flags" value={`${r.syn_flag_count ?? "—"} / ${r.ack_flag_count ?? "—"}`} />
             <DataLine label="Avg Pkt Size" value={r.average_packet_size?.toFixed(1) ?? "—"} />
             <DataLine label="Internal" value={r.is_internal_traffic ? "TRUE" : "FALSE"} />
+            {r.packets_per_second != null && (
+              <DataLine label="PCAP Packets/s" value={r.packets_per_second.toFixed(2)} />
+            )}
+            {r.bytes_per_second != null && (
+              <DataLine label="PCAP Bytes/s" value={r.bytes_per_second.toFixed(2)} />
+            )}
+            {r.sources && r.sources.length > 0 && (
+              <DataLine label="Sources" value={r.sources.join(", ").toUpperCase()} />
+            )}
           </div>
           <div>
             <div className="text-[10px] tracking-[0.25em] text-cyan mb-2">BEHAVIORAL EXPLANATIONS</div>

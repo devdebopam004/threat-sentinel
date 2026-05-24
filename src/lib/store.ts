@@ -12,6 +12,8 @@ export interface EnginesState {
   threat: EngineStatus;
   behavior: EngineStatus;
   anomaly: EngineStatus;
+  pcap: EngineStatus;
+  correlation: EngineStatus;
 }
 
 interface AppState {
@@ -23,7 +25,9 @@ interface AppState {
   lastError: string | null;
   threatApi: string;
   behaviorApi: string;
-  setApis: (t: string, b: string) => void;
+  pcapApi: string;
+  correlationApi: string;
+  setApis: (apis: Partial<Pick<AppState, "threatApi" | "behaviorApi" | "pcapApi" | "correlationApi">>) => void;
   setEngine: (k: keyof EnginesState, s: EngineStatus) => void;
   setAll: (
     t: ThreatPrediction[],
@@ -42,11 +46,19 @@ export const useAppStore = create<AppState>()(
       anomalies: [],
       behaviors: [],
       unified: [],
-      engines: { threat: "ready", behavior: "ready", anomaly: "ready" },
+      engines: {
+        threat: "ready",
+        behavior: "ready",
+        anomaly: "ready",
+        pcap: "ready",
+        correlation: "ready",
+      },
       lastError: null,
       threatApi: "https://cyber-threat-api-new.onrender.com",
       behaviorApi: "https://behavior-api-new-ngra.onrender.com",
-      setApis: (t, b) => set({ threatApi: t, behaviorApi: b }),
+      pcapApi: "https://behavior-correct.onrender.com",
+      correlationApi: "https://cyber-threat-anomaly.onrender.com",
+      setApis: (apis) => set((st) => ({ ...st, ...apis })),
       setEngine: (k, s) =>
         set((st) => ({ engines: { ...st.engines, [k]: s } })),
       setAll: (t, a, b, u) =>
@@ -62,14 +74,19 @@ export const useAppStore = create<AppState>()(
         }),
     }),
     {
-      name: "soc-store-v2",
+      name: "soc-store-v3",
       storage: createJSONStorage(() =>
         typeof window === "undefined"
           ? (undefined as unknown as Storage)
           : localStorage,
       ),
       skipHydration: true,
-      partialize: (s) => ({ threatApi: s.threatApi, behaviorApi: s.behaviorApi }),
+      partialize: (s) => ({
+        threatApi: s.threatApi,
+        behaviorApi: s.behaviorApi,
+        pcapApi: s.pcapApi,
+        correlationApi: s.correlationApi,
+      }),
     },
   ),
 );

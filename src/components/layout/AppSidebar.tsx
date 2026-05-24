@@ -25,6 +25,8 @@ const engineMeta = [
   { key: "threat" as const, label: "Threat AI", icon: ShieldCheck },
   { key: "behavior" as const, label: "Behavior AI", icon: Brain },
   { key: "anomaly" as const, label: "Anomaly AI", icon: Cpu },
+  { key: "pcap" as const, label: "PCAP AI", icon: Cpu },
+  { key: "correlation" as const, label: "Log Correlation", icon: Brain },
 ];
 
 export function AppSidebar() {
