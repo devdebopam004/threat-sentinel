@@ -8,6 +8,8 @@ const STAGES = [
   "Running AI threat models...",
   "Performing anomaly detection...",
   "Analyzing behavioral intelligence...",
+  "PCAP threat correlation...",
+  "Apache log correlation...",
   "Correlating suspicious indicators...",
   "Generating threat scores...",
   "Building unified threat dashboard...",

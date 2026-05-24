@@ -2,6 +2,7 @@ import type {
   ThreatPrediction,
   AnomalyPrediction,
   BehaviorPrediction,
+  PcapPrediction,
   UnifiedRecord,
   RiskLevel,
   Severity,
@@ -39,15 +40,26 @@ const sevFromConfidence = (c: number, attack: string): Severity => {
   return "Low";
 };
 
+const normalizeSeverity = (v: unknown): Severity | undefined => {
+  const s = str(v).trim();
+  if (!s) return undefined;
+  const lc = s.toLowerCase();
+  if (lc.startsWith("crit")) return "Critical";
+  if (lc.startsWith("high")) return "High";
+  if (lc.startsWith("med")) return "Medium";
+  if (lc.startsWith("low")) return "Low";
+  return undefined;
+};
+
 export function normalizeThreatRow(row: Record<string, unknown>): ThreatPrediction {
   const prob = num(row.malicious_probability ?? row.probability ?? row.score);
   const pred = (num(row.prediction) >= 1 ? 1 : 0) as 0 | 1;
   return {
     timestamp: str(row.timestamp ?? row.time ?? row.Timestamp),
-    src_ip: str(row.src_ip ?? row["Src IP"] ?? row["Src IP dec"]),
-    dst_ip: str(row.dst_ip ?? row["Dst IP"] ?? row["Dst IP dec"]),
-    src_port: num(row.src_port ?? row["Src Port"]),
-    dst_port: num(row.dst_port ?? row["Dst Port"]),
+    src_ip: str(row.src_ip ?? row["Src IP"] ?? row["Src IP dec"] ?? row.source_ip),
+    dst_ip: str(row.dst_ip ?? row["Dst IP"] ?? row["Dst IP dec"] ?? row.destination_ip),
+    src_port: num(row.src_port ?? row["Src Port"] ?? row.source_port),
+    dst_port: num(row.dst_port ?? row["Dst Port"] ?? row.destination_port),
     protocol: str(row.protocol ?? row.Protocol, "TCP"),
     bytes_sent: num(row.bytes_sent),
     bytes_received: num(row.bytes_received),
@@ -67,8 +79,8 @@ export function normalizeAnomalyRow(row: Record<string, unknown>): AnomalyPredic
     (score >= 0.5 ? "Anomalous" : "Normal")) as "Normal" | "Anomalous";
   return {
     timestamp: str(row.timestamp ?? row.Timestamp),
-    src_ip: str(row.src_ip ?? row["Src IP dec"]),
-    dst_ip: str(row.dst_ip ?? row["Dst IP dec"]),
+    src_ip: str(row.src_ip ?? row["Src IP dec"] ?? row.source_ip),
+    dst_ip: str(row.dst_ip ?? row["Dst IP dec"] ?? row.destination_ip),
     src_port: num(row.src_port ?? row["Src Port"]),
     dst_port: num(row.dst_port ?? row["Dst Port"]),
     protocol: str(row.protocol ?? row.Protocol, "TCP"),
@@ -109,19 +121,44 @@ export function normalizeBehaviorRow(row: Record<string, unknown>): BehaviorPred
   };
 }
 
-const keyOf = (r: { timestamp: string; src_ip: string; dst_ip: string }) =>
-  `${r.timestamp}|${r.src_ip}|${r.dst_ip}`;
+export function normalizePcapRow(row: Record<string, unknown>): PcapPrediction {
+  const conf = num(row.confidence);
+  const attack = str(row.attack_prediction ?? row.prediction, "BENIGN");
+  const traffic = (row.traffic_analysis ?? {}) as Record<string, unknown>;
+  return {
+    src_ip: str(row.source_ip ?? row.src_ip),
+    dst_ip: str(row.destination_ip ?? row.dst_ip),
+    src_port: num(row.source_port ?? row.src_port),
+    dst_port: num(row.destination_port ?? row.dst_port),
+    protocol: str(row.protocol, "TCP"),
+    attack_prediction: attack,
+    confidence: conf,
+    severity:
+      normalizeSeverity(row.severity) ?? sevFromConfidence(conf, attack),
+    packets_per_second: num(traffic.packets_per_second ?? row.packets_per_second),
+    bytes_per_second: num(traffic.bytes_per_second ?? row.bytes_per_second),
+    syn_flags: num(traffic.syn_flags ?? row.syn_flags),
+  };
+}
+
+const keyOf = (r: { timestamp?: string; src_ip: string; dst_ip: string; src_port?: number; dst_port?: number }) =>
+  `${r.timestamp ?? ""}|${r.src_ip}|${r.dst_ip}|${r.src_port ?? ""}|${r.dst_port ?? ""}`;
 
 export function unify(
   threats: ThreatPrediction[],
   anomalies: AnomalyPrediction[],
   behaviors: BehaviorPrediction[],
+  pcaps: PcapPrediction[] = [],
 ): UnifiedRecord[] {
   const map = new Map<string, UnifiedRecord>();
+  const tag = (rec: UnifiedRecord, src: string) => {
+    if (!rec.sources) rec.sources = [];
+    if (!rec.sources.includes(src)) rec.sources.push(src);
+  };
 
   for (const t of threats) {
     const k = keyOf(t);
-    map.set(k, {
+    const rec: UnifiedRecord = {
       id: k,
       timestamp: t.timestamp,
       src_ip: t.src_ip,
@@ -138,7 +175,9 @@ export function unify(
       malicious_probability: t.malicious_probability,
       risk_level: t.risk_level,
       threat_explanation: t.explanation,
-    });
+    };
+    tag(rec, "threat");
+    map.set(k, rec);
   }
 
   for (const a of anomalies) {
@@ -160,6 +199,7 @@ export function unify(
     cur.anomaly_status = a.anomaly_status;
     cur.anomaly_score = a.anomaly_score;
     cur.anomaly_reasons = a.reasons;
+    tag(cur, "anomaly");
     map.set(k, cur);
   }
 
@@ -187,8 +227,39 @@ export function unify(
     cur.ack_flag_count = b.ack_flag_count;
     cur.packet_length_mean = b.packet_length_mean;
     cur.average_packet_size = b.average_packet_size;
+    tag(cur, "behavior");
     map.set(k, cur);
   }
 
-  return Array.from(map.values()).sort((x, y) => x.timestamp.localeCompare(y.timestamp));
+  let pcapIdx = 0;
+  for (const p of pcaps) {
+    // PCAP rows have no timestamp; key by ip+port. May collide with existing → merge additively.
+    const k = keyOf({ src_ip: p.src_ip, dst_ip: p.dst_ip, src_port: p.src_port, dst_port: p.dst_port });
+    const cur = map.get(k) ?? {
+      id: `pcap-${pcapIdx++}-${k}`,
+      timestamp: "",
+      src_ip: p.src_ip,
+      dst_ip: p.dst_ip,
+      src_port: p.src_port,
+      dst_port: p.dst_port,
+      protocol: p.protocol,
+      bytes_sent: 0,
+      bytes_received: 0,
+    };
+    // Only fill if not already set by behavior engine
+    if (!cur.attack_prediction || cur.attack_prediction.toUpperCase() === "BENIGN") {
+      cur.attack_prediction = p.attack_prediction;
+    }
+    if (cur.confidence == null) cur.confidence = p.confidence;
+    if (!cur.severity) cur.severity = p.severity;
+    if (p.packets_per_second) cur.packets_per_second = p.packets_per_second;
+    if (p.bytes_per_second) cur.bytes_per_second = p.bytes_per_second;
+    if (p.syn_flags) cur.syn_flag_count = cur.syn_flag_count ?? p.syn_flags;
+    tag(cur, "pcap");
+    map.set(cur.id === `pcap-${pcapIdx - 1}-${k}` ? cur.id : k, cur);
+  }
+
+  return Array.from(map.values()).sort((x, y) =>
+    (x.timestamp || "").localeCompare(y.timestamp || ""),
+  );
 }
