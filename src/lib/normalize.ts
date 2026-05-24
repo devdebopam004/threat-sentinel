@@ -233,30 +233,40 @@ export function unify(
 
   let pcapIdx = 0;
   for (const p of pcaps) {
-    // PCAP rows have no timestamp; key by ip+port. May collide with existing → merge additively.
     const k = keyOf({ src_ip: p.src_ip, dst_ip: p.dst_ip, src_port: p.src_port, dst_port: p.dst_port });
-    const cur = map.get(k) ?? {
-      id: `pcap-${pcapIdx++}-${k}`,
-      timestamp: "",
-      src_ip: p.src_ip,
-      dst_ip: p.dst_ip,
-      src_port: p.src_port,
-      dst_port: p.dst_port,
-      protocol: p.protocol,
-      bytes_sent: 0,
-      bytes_received: 0,
-    };
-    // Only fill if not already set by behavior engine
-    if (!cur.attack_prediction || cur.attack_prediction.toUpperCase() === "BENIGN") {
-      cur.attack_prediction = p.attack_prediction;
+    const existing = map.get(k);
+    if (existing) {
+      if (!existing.attack_prediction || existing.attack_prediction.toUpperCase() === "BENIGN") {
+        existing.attack_prediction = p.attack_prediction;
+      }
+      if (existing.confidence == null) existing.confidence = p.confidence;
+      if (!existing.severity) existing.severity = p.severity;
+      if (p.packets_per_second) existing.packets_per_second = p.packets_per_second;
+      if (p.bytes_per_second) existing.bytes_per_second = p.bytes_per_second;
+      if (p.syn_flags && existing.syn_flag_count == null) existing.syn_flag_count = p.syn_flags;
+      tag(existing, "pcap");
+    } else {
+      const id = `pcap-${pcapIdx++}-${k}`;
+      const rec: UnifiedRecord = {
+        id,
+        timestamp: "",
+        src_ip: p.src_ip,
+        dst_ip: p.dst_ip,
+        src_port: p.src_port,
+        dst_port: p.dst_port,
+        protocol: p.protocol,
+        bytes_sent: 0,
+        bytes_received: 0,
+        attack_prediction: p.attack_prediction,
+        confidence: p.confidence,
+        severity: p.severity,
+        packets_per_second: p.packets_per_second,
+        bytes_per_second: p.bytes_per_second,
+        syn_flag_count: p.syn_flags,
+      };
+      tag(rec, "pcap");
+      map.set(id, rec);
     }
-    if (cur.confidence == null) cur.confidence = p.confidence;
-    if (!cur.severity) cur.severity = p.severity;
-    if (p.packets_per_second) cur.packets_per_second = p.packets_per_second;
-    if (p.bytes_per_second) cur.bytes_per_second = p.bytes_per_second;
-    if (p.syn_flags) cur.syn_flag_count = cur.syn_flag_count ?? p.syn_flags;
-    tag(cur, "pcap");
-    map.set(cur.id === `pcap-${pcapIdx - 1}-${k}` ? cur.id : k, cur);
   }
 
   return Array.from(map.values()).sort((x, y) =>
