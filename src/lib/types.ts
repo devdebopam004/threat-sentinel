@@ -53,10 +53,24 @@ export interface BehaviorPrediction {
   ack_flag_count: number;
   packet_length_mean: number;
   average_packet_size: number;
-  attack_prediction: string; // BENIGN | Port Scan | DoS | ...
+  attack_prediction: string;
   confidence: number;
   severity: Severity;
   behavior_summary: string[];
+}
+
+export interface PcapPrediction {
+  src_ip: string;
+  dst_ip: string;
+  src_port: number;
+  dst_port: number;
+  protocol: string;
+  attack_prediction: string;
+  confidence: number;
+  severity: Severity;
+  packets_per_second?: number;
+  bytes_per_second?: number;
+  syn_flags?: number;
 }
 
 export interface UnifiedRecord {
@@ -81,7 +95,7 @@ export interface UnifiedRecord {
   anomaly_status?: AnomalyStatus;
   anomaly_score?: number;
   anomaly_reasons?: string[];
-  // behavior
+  // behavior + pcap (shared shape)
   attack_prediction?: string;
   confidence?: number;
   severity?: Severity;
@@ -94,6 +108,11 @@ export interface UnifiedRecord {
   ack_flag_count?: number;
   packet_length_mean?: number;
   average_packet_size?: number;
+  // pcap traffic analysis
+  packets_per_second?: number;
+  bytes_per_second?: number;
+  // source tag for UI hints
+  sources?: string[];
 }
 
 export type EngineStatus = "ready" | "running" | "error" | "idle";
